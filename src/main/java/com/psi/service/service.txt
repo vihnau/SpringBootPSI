@@ -1,0 +1,32 @@
+在Hibernate中，當你從資料庫中檢索實體時，關聯的集合屬性（例如OneToMany或ManyToMany關聯）
+通常會被映射為PersistentSet或其他Hibernate特定的集合類型，而不是標準的Java集合類型
+（如java.util.Set）。
+PersistentSet是Hibernate提供的一個實現了java.util.Set接口的特殊集合類型。
+它在功能上類似於java.util.Set，但包含了額外的Hibernate特性，例如延遲加載、持久
+性追蹤等。當你在Hibernate中定義了集合關聯時，Hibernate會自動使用PersistentSet
+來表示這些集合。
+在你的程式中，即使你沒有直接使用PersistentSet類型，但當你從資料庫中檢索Purchase對象時
+，purchaseItems屬性仍然是PersistentSet類型。因此，在進行映射時，ModelMapper無法
+直接將PersistentSet轉換為java.util.Set，這導致了IllegalArgumentException。
+
+
+為了解決這個問題，你需要在映射之前將PersistentSet轉換為普通的java.util.Set。這可以通
+過將PersistentSet遍歷並將其元素添加到普通的Set中來完成，這樣就可以成功進行映射了。
+在這種情況下，出現IllegalArgumentException的原因是ModelMapper無法將PersistentSet
+轉換為java.util.Set。這是因為PersistentSet是Hibernate中用於表示持久集合的特殊類型。
+為了解決這個問題，你可以在映射之前將PersistentSet轉換為普通的java.util.Set。你可以通過
+對集合進行遍歷，將其轉換為普通的Set。這樣做可能需要一些額外的代碼，但這是解決這個問題的一種常見方法。
+
+具體來說，你可以在映射之前對Purchase對象的purchaseItems進行處理。例如：
+List<PurchaseDto> purchaseDtos = purchases.stream()
+    .map(purchase -> {
+        PurchaseDto purchaseDto = modelMapper.map(purchase, PurchaseDto.class);
+        // 將PersistentSet轉換為普通的Set
+        Set<PurchaseItemDto> purchaseItemDtos = new HashSet<>();
+        for (PurchaseItem purchaseItem : purchase.getPurchaseItems()) {
+            purchaseItemDtos.add(modelMapper.map(purchaseItem, PurchaseItemDto.class));
+        }
+        purchaseDto.setPurchaseItems(purchaseItemDtos);
+        return purchaseDto;
+    })
+    .toList();
